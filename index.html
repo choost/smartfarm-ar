@@ -7,217 +7,198 @@
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <style>
+    * { box-sizing: border-box; }
     body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+
+    #ui-wrapper {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none; z-index: 9999;
+    }
+    #ui-wrapper > * { pointer-events: auto; }
 
     /* 상단 헤더 */
     #header {
-      position: fixed; top: 0; left: 0; right: 0;
-      background: rgba(0,0,0,0.8); color: white;
-      padding: 8px 10px 4px; z-index: 999;
+      background: rgba(0,0,0,0.82);
+      padding: 8px 12px 6px;
     }
     #header-title {
       text-align: center; font-size: 13px; font-weight: bold;
-      margin-bottom: 6px;
+      color: white; margin-bottom: 6px;
     }
-
-    /* 환경값 표시 바 */
     #env-bar {
       display: flex; justify-content: space-around;
-      padding: 4px 0 6px;
       border-top: 1px solid rgba(255,255,255,0.15);
+      padding-top: 6px;
     }
     .env-item {
       display: flex; flex-direction: column; align-items: center; gap: 2px;
     }
-    .env-label {
-      font-size: 10px; color: rgba(255,255,255,0.6);
+    .env-label { font-size: 10px; color: rgba(255,255,255,0.55); }
+    .env-value { font-size: 14px; font-weight: bold; }
+    .env-track {
+      width: 60px; height: 5px;
+      background: rgba(255,255,255,0.15); border-radius: 3px; overflow: hidden;
     }
-    .env-value {
-      font-size: 14px; font-weight: bold;
-    }
-    .env-bar-wrap {
-      width: 70px; height: 5px; background: rgba(255,255,255,0.15);
-      border-radius: 3px; overflow: hidden;
-    }
-    .env-bar-fill {
-      height: 100%; border-radius: 3px; transition: width 0.4s;
-    }
-    .normal-fill { background: #52B788; }
-    .stress-fill { background: #ff6b6b; }
+    .env-fill { height: 100%; border-radius: 3px; transition: width 0.4s, background 0.4s; }
 
-    /* 단계 진행 표시 */
-    #stage-bar {
-      position: fixed; top: 80px; left: 0; right: 0;
-      display: flex; justify-content: center; gap: 6px;
-      z-index: 999; padding: 4px;
+    /* 단계 도트 */
+    #dots {
+      position: absolute; top: 108px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 8px; padding: 4px;
     }
-    .stage-dot {
+    .dot {
       width: 10px; height: 10px; border-radius: 50%;
-      background: rgba(255,255,255,0.25);
-      border: 1px solid rgba(255,255,255,0.4);
-      transition: background 0.3s;
+      background: rgba(255,255,255,0.2);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      transition: background 0.3s, border-color 0.3s;
     }
-    .stage-dot.active { background: #52B788; border-color: #52B788; }
-    .stage-dot.stress-active { background: #ff6b6b; border-color: #ff6b6b; }
+    .dot.on-n { background: #52B788; border-color: #52B788; }
+    .dot.on-s { background: #ff6b6b; border-color: #ff6b6b; }
 
-    /* 하단 컨트롤 */
+    /* 피드백 */
+    #feedback {
+      position: absolute; bottom: 62px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85); padding: 7px 18px; border-radius: 6px;
+      font-size: 12px; font-weight: bold; white-space: nowrap;
+      display: none;
+    }
+    #feedback.ok  { color: #52B788; }
+    #feedback.bad { color: #ff6b6b; }
+
+    /* 하단 버튼 */
     #controls {
-      position: fixed; bottom: 0; left: 0; right: 0;
+      position: absolute; bottom: 0; left: 0; right: 0;
       background: rgba(0,0,0,0.85); padding: 8px;
-      display: flex; gap: 6px; justify-content: center;
-      flex-wrap: wrap; z-index: 999;
+      display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
     }
     button {
-      padding: 9px 14px; border: none; border-radius: 8px;
-      font-size: 12px; cursor: pointer; color: white; font-weight: bold;
+      padding: 9px 13px; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: bold; color: white; cursor: pointer;
     }
-    #btn-normal   { background: #2D6A4F; }
-    #btn-stress   { background: #333; border: 1px solid #666; }
-    #btn-simulate { background: #1B4332; }
-    #btn-reset    { background: #555; }
-
-    /* 결과 피드백 */
-    #feedback {
-      position: fixed; bottom: 58px; left: 50%; transform: translateX(-50%);
-      padding: 7px 18px; border-radius: 6px;
-      font-size: 12px; font-weight: bold; z-index: 999;
-      display: none; white-space: nowrap;
-      background: rgba(0,0,0,0.85);
-    }
-    #feedback.success { color: #52B788; }
-    #feedback.danger  { color: #ff6b6b; }
+    #btn-n { background: #2D6A4F; }
+    #btn-s { background: #444; border: 1px solid #666; }
+    #btn-go { background: #1B4332; }
+    #btn-r  { background: #555; }
   </style>
 </head>
 <body>
 
-<!-- 상단 헤더 + 환경값 -->
-<div id="header">
-  <div id="header-title">SmartFarm Growth AR</div>
-  <div id="env-bar">
-    <div class="env-item">
-      <span class="env-label">🌡 온도</span>
-      <span class="env-value" id="val-temp" style="color:#52B788;">24°C</span>
-      <div class="env-bar-wrap"><div class="env-bar-fill normal-fill" id="bar-temp" style="width:45%;"></div></div>
+<div id="ui-wrapper">
+  <!-- 헤더 -->
+  <div id="header">
+    <div id="header-title">SmartFarm Growth AR</div>
+    <div id="env-bar">
+      <div class="env-item">
+        <span class="env-label">🌡 온도</span>
+        <span class="env-value" id="v-temp" style="color:#52B788">24°C</span>
+        <div class="env-track"><div class="env-fill" id="f-temp" style="width:45%;background:#52B788"></div></div>
+      </div>
+      <div class="env-item">
+        <span class="env-label">💧 수분</span>
+        <span class="env-value" id="v-moist" style="color:#52B788">70%</span>
+        <div class="env-track"><div class="env-fill" id="f-moist" style="width:70%;background:#52B788"></div></div>
+      </div>
+      <div class="env-item">
+        <span class="env-label">☀ 조도</span>
+        <span class="env-value" id="v-light" style="color:#52B788">80%</span>
+        <div class="env-track"><div class="env-fill" id="f-light" style="width:80%;background:#52B788"></div></div>
+      </div>
+      <div class="env-item">
+        <span class="env-label">📊 상태</span>
+        <span class="env-value" id="v-state" style="color:#52B788;font-size:11px">최적</span>
+      </div>
     </div>
-    <div class="env-item">
-      <span class="env-label">💧 수분</span>
-      <span class="env-value" id="val-moist" style="color:#52B788;">70%</span>
-      <div class="env-bar-wrap"><div class="env-bar-fill normal-fill" id="bar-moist" style="width:70%;"></div></div>
-    </div>
-    <div class="env-item">
-      <span class="env-label">☀ 조도</span>
-      <span class="env-value" id="val-light" style="color:#52B788;">80%</span>
-      <div class="env-bar-wrap"><div class="env-bar-fill normal-fill" id="bar-light" style="width:80%;"></div></div>
-    </div>
-    <div class="env-item">
-      <span class="env-label">📊 상태</span>
-      <span class="env-value" id="val-status" style="color:#52B788; font-size:11px;">최적 환경</span>
-    </div>
+  </div>
+
+  <!-- 단계 도트 -->
+  <div id="dots">
+    <div class="dot on-n" id="d0"></div>
+    <div class="dot" id="d1"></div>
+    <div class="dot" id="d2"></div>
+    <div class="dot" id="d3"></div>
+    <div class="dot" id="d4"></div>
+  </div>
+
+  <!-- 피드백 -->
+  <div id="feedback"></div>
+
+  <!-- 하단 버튼 -->
+  <div id="controls">
+    <button id="btn-n"  onclick="setMode('normal')">🌱 Normal</button>
+    <button id="btn-s"  onclick="setMode('stress')">⚠ Stress</button>
+    <button id="btn-go" onclick="simulate()">Simulate ▶</button>
+    <button id="btn-r"  onclick="resetScene()">↺ Reset</button>
   </div>
 </div>
 
-<!-- 단계 진행 도트 -->
-<div id="stage-bar">
-  <div class="stage-dot active" id="dot-0"></div>
-  <div class="stage-dot" id="dot-1"></div>
-  <div class="stage-dot" id="dot-2"></div>
-  <div class="stage-dot" id="dot-3"></div>
-  <div class="stage-dot" id="dot-4"></div>
-</div>
-
-<div id="controls">
-  <button id="btn-normal"   onclick="setMode('normal')">🌱 Normal Mode</button>
-  <button id="btn-stress"   onclick="setMode('stress')">⚠ Stress Mode</button>
-  <button id="btn-simulate" onclick="simulate()">Simulate Growth ▶</button>
-  <button id="btn-reset"    onclick="resetScene()">↺ Reset</button>
-</div>
-
-<div id="feedback"></div>
-
-<!-- AR 씬 -->
+<!-- AR 씬 (z-index 낮게) -->
 <a-scene
   embedded
   arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;"
   renderer="logarithmicDepthBuffer: true;"
-  vr-mode-ui="enabled: false">
+  vr-mode-ui="enabled: false"
+  style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;">
 
-  <a-marker preset="hiro" id="crop-marker">
+  <a-marker preset="hiro">
+    <!-- 기울기 없이 수직으로 세움 -->
+    <a-entity id="pg" position="0 0 0">
 
-    <!-- 전체 식물 그룹 (기울기 조정용) -->
-    <a-entity id="plant-group" rotation="75 0 0" position="0 0 -0.3">
-
-      <!-- 화분 -->
       <a-cylinder id="pot"
-        position="0 0.1 0" radius="0.3" height="0.25"
-        color="#8B5E3C">
+        position="0 0.12 0" radius="0.3" height="0.28" color="#8B5E3C">
       </a-cylinder>
-
-      <!-- 흙 -->
       <a-cylinder id="soil"
-        position="0 0.23 0" radius="0.28" height="0.05"
-        color="#4a3728">
+        position="0 0.27 0" radius="0.28" height="0.05" color="#4a3728">
       </a-cylinder>
 
       <!-- 씨앗 -->
       <a-sphere id="seed"
-        position="0 0.32 0" radius="0.08"
-        color="#8B6914" visible="true">
+        position="0 0.35 0" radius="0.09" color="#8B6914" visible="true">
       </a-sphere>
 
       <!-- 줄기 -->
       <a-cylinder id="stem"
-        position="0 0.55 0" radius="0.04" height="0.5"
+        position="0 0.6 0" radius="0.045" height="0.6"
         color="#3a8c3a" visible="false">
       </a-cylinder>
 
-      <!-- 잎 왼쪽 -->
-      <a-sphere id="leaf-l"
-        position="-0.2 0.68 0" radius="0.12"
-        color="#52B788" scale="1.5 0.7 0.7"
-        visible="false">
+      <!-- 잎 왼 -->
+      <a-sphere id="ll"
+        position="-0.22 0.72 0" radius="0.13"
+        color="#52B788" scale="1.5 0.7 0.7" visible="false">
+      </a-sphere>
+      <!-- 잎 오 -->
+      <a-sphere id="lr"
+        position="0.22 0.80 0" radius="0.13"
+        color="#40916C" scale="1.5 0.7 0.7" visible="false">
+      </a-sphere>
+      <!-- 잎 위 -->
+      <a-sphere id="lt"
+        position="0 0.94 0" radius="0.11"
+        color="#74C69D" scale="0.8 1.3 0.8" visible="false">
       </a-sphere>
 
-      <!-- 잎 오른쪽 -->
-      <a-sphere id="leaf-r"
-        position="0.2 0.75 0" radius="0.12"
-        color="#40916C" scale="1.5 0.7 0.7"
-        visible="false">
+      <!-- 큰 잎 왼 -->
+      <a-sphere id="lbl"
+        position="-0.32 0.82 0" radius="0.17"
+        color="#2D6A4F" scale="1.7 0.55 0.8" visible="false">
+      </a-sphere>
+      <!-- 큰 잎 오 -->
+      <a-sphere id="lbr"
+        position="0.32 0.88 0" radius="0.17"
+        color="#1B4332" scale="1.7 0.55 0.8" visible="false">
       </a-sphere>
 
-      <!-- 새 잎 (3단계부터) -->
-      <a-sphere id="leaf-t"
-        position="0 0.88 0" radius="0.1"
-        color="#74C69D" scale="0.8 1.3 0.8"
-        visible="false">
+      <!-- 열매 -->
+      <a-sphere id="f1"
+        position="0.2 1.08 0" radius="0.13" color="#f4a261" visible="false">
       </a-sphere>
-
-      <!-- 큰 잎들 (4단계) -->
-      <a-sphere id="leaf-big-l"
-        position="-0.3 0.78 0" radius="0.16"
-        color="#2D6A4F" scale="1.6 0.6 0.8"
-        visible="false">
-      </a-sphere>
-      <a-sphere id="leaf-big-r"
-        position="0.3 0.85 0" radius="0.16"
-        color="#1B4332" scale="1.6 0.6 0.8"
-        visible="false">
-      </a-sphere>
-
-      <!-- 열매 1 -->
-      <a-sphere id="fruit1"
-        position="0.18 1.05 0" radius="0.12"
-        color="#f4a261" visible="false">
-      </a-sphere>
-
-      <!-- 열매 2 -->
-      <a-sphere id="fruit2"
-        position="-0.15 1.0 0" radius="0.10"
-        color="#e76f51" visible="false">
+      <a-sphere id="f2"
+        position="-0.16 1.02 0" radius="0.11" color="#e76f51" visible="false">
       </a-sphere>
 
       <!-- 상태 텍스트 -->
-      <a-text id="status-text"
-        value="SEED" position="0 1.4 0"
+      <a-text id="stxt"
+        value="SEED" position="0 1.5 0"
         align="center" color="#ffffff" width="2.5">
       </a-text>
 
@@ -228,252 +209,159 @@
 </a-scene>
 
 <script>
-  // ── 상태 ───────────────────────────────────────────────
-  let currentMode  = 'normal';
-  let currentStage = 0;
-  const MAX_STAGE  = 5;
+  let mode  = 'normal';
+  let stage = 0;
+  const MAX = 5;
 
-  // 환경값
-  const envParams = {
-    normal: { temp:24, moist:70, light:80,
-      tempPct:45, moistPct:70, lightPct:80, statusText:'최적 환경' },
-    stress: { temp:39, moist:8,  light:15,
-      tempPct:95, moistPct:8,  lightPct:15, statusText:'불량 환경' },
+  const ENV = {
+    normal: { temp:'24°C', moist:'70%', light:'80%',
+              tp:45, mp:70, lp:80, state:'최적', col:'#52B788' },
+    stress: { temp:'39°C', moist:'8%',  light:'15%',
+              tp:95, mp:8,  lp:15, state:'불량', col:'#ff6b6b' },
   };
 
-  // Normal 색상
-  const normalColors = {
-    pot:'#8B5E3C', soil:'#4a3728', seed:'#8B6914',
-    stem:'#3a8c3a', leafL:'#52B788', leafR:'#40916C',
-    leafT:'#74C69D', leafBL:'#2D6A4F', leafBR:'#1B4332',
-    fruit1:'#f4a261', fruit2:'#e76f51',
+  // 색상
+  const NC = { pot:'#8B5E3C', seed:'#8B6914', stem:'#3a8c3a',
+               ll:'#52B788', lr:'#40916C', lt:'#74C69D',
+               lbl:'#2D6A4F', lbr:'#1B4332', f1:'#f4a261', f2:'#e76f51' };
+  const SC = { pot:'#3d1f08', seed:'#4a3a05', stem:'#6b6b10',
+               ll:'#7a7210', lr:'#696505', lt:'#5a5508',
+               lbl:'#4a4808', lbr:'#3a3806', f1:'#7a5a0a', f2:'#6a4808' };
+
+  // 형태: Normal
+  const NS = {
+    pot:  { p:'0 0.12 0',    r:'0 0 0',   s:'1 1 1' },
+    stem: { p:'0 0.6 0',     r:'0 0 0',   s:'1 1 1' },
+    ll:   { p:'-0.22 0.72 0',r:'0 0 0',   s:'1.5 0.7 0.7' },
+    lr:   { p:'0.22 0.80 0', r:'0 0 0',   s:'1.5 0.7 0.7' },
+    lt:   { p:'0 0.94 0',    r:'0 0 0',   s:'0.8 1.3 0.8' },
+    lbl:  { p:'-0.32 0.82 0',r:'0 0 0',   s:'1.7 0.55 0.8' },
+    lbr:  { p:'0.32 0.88 0', r:'0 0 0',   s:'1.7 0.55 0.8' },
+    f1:   { p:'0.2 1.08 0',  r:'0 0 0',   s:'1 1 1' },
+    f2:   { p:'-0.16 1.02 0',r:'0 0 0',   s:'1 1 1' },
   };
 
-  // Stress 색상
-  const stressColors = {
-    pot:'#3d1f08', soil:'#2a1a08', seed:'#4a3a05',
-    stem:'#6b6b10', leafL:'#7a7210', leafR:'#696505',
-    leafT:'#5a5508', leafBL:'#4a4808', leafBR:'#3a3806',
-    fruit1:'#7a5a0a', fruit2:'#6a4808',
+  // 형태: Stress (찌그러짐, 기울어짐)
+  const SS = {
+    pot:  { p:'0.06 0.12 0',  r:'0 0 14',  s:'1 0.82 1' },
+    stem: { p:'0.1 0.56 0',   r:'0 0 18',  s:'0.65 0.88 0.65' },
+    ll:   { p:'-0.08 0.64 0', r:'0 0 50',  s:'0.85 0.38 0.5' },
+    lr:   { p:'0.18 0.68 0',  r:'0 0 -42', s:'0.75 0.33 0.5' },
+    lt:   { p:'0.07 0.78 0',  r:'0 0 22',  s:'0.45 0.65 0.45' },
+    lbl:  { p:'-0.18 0.72 0', r:'0 0 58',  s:'0.75 0.28 0.5' },
+    lbr:  { p:'0.22 0.77 0',  r:'0 0 -52', s:'0.75 0.28 0.5' },
+    f1:   { p:'0.12 0.9 0',   r:'0 0 0',   s:'0.55 0.48 0.55' },
+    f2:   { p:'-0.1 0.87 0',  r:'0 0 0',   s:'0.45 0.38 0.45' },
   };
 
-  // Normal 형태 (position / scale / rotation)
-  const normalShape = {
-    pot:    { pos:'0 0.1 0',   rot:'0 0 0',   scale:'1 1 1' },
-    stem:   { pos:'0 0.55 0',  rot:'0 0 0',   scale:'1 1 1' },
-    leafL:  { pos:'-0.2 0.68 0', rot:'0 0 0', scale:'1.5 0.7 0.7' },
-    leafR:  { pos:'0.2 0.75 0',  rot:'0 0 0', scale:'1.5 0.7 0.7' },
-    leafT:  { pos:'0 0.88 0',    rot:'0 0 0', scale:'0.8 1.3 0.8' },
-    leafBL: { pos:'-0.3 0.78 0', rot:'0 0 0', scale:'1.6 0.6 0.8' },
-    leafBR: { pos:'0.3 0.85 0',  rot:'0 0 0', scale:'1.6 0.6 0.8' },
-    fruit1: { pos:'0.18 1.05 0', rot:'0 0 0', scale:'1 1 1' },
-    fruit2: { pos:'-0.15 1.0 0', rot:'0 0 0', scale:'1 1 1' },
-  };
-
-  // Stress 형태 (찌그러짐, 기울어짐)
-  const stressShape = {
-    pot:    { pos:'0.05 0.1 0',  rot:'0 0 12',  scale:'1 0.85 1' },
-    stem:   { pos:'0.08 0.52 0', rot:'0 0 15',  scale:'0.7 0.9 0.7' },
-    leafL:  { pos:'-0.1 0.62 0', rot:'0 0 40',  scale:'0.9 0.4 0.5' },
-    leafR:  { pos:'0.15 0.66 0', rot:'0 0 -35', scale:'0.8 0.35 0.5' },
-    leafT:  { pos:'0.05 0.78 0', rot:'0 0 20',  scale:'0.5 0.7 0.5' },
-    leafBL: { pos:'-0.2 0.7 0',  rot:'0 0 55',  scale:'0.8 0.3 0.5' },
-    leafBR: { pos:'0.22 0.75 0', rot:'0 0 -50', scale:'0.8 0.3 0.5' },
-    fruit1: { pos:'0.1 0.9 0',   rot:'0 0 0',   scale:'0.6 0.5 0.6' },
-    fruit2: { pos:'-0.08 0.88 0',rot:'0 0 0',   scale:'0.5 0.4 0.5' },
-  };
-
-  // ── 환경값 UI 업데이트 ──────────────────────────────────
-  function updateEnvUI(mode) {
-    const p = envParams[mode];
-    const isStress = mode === 'stress';
-    const col = isStress ? '#ff6b6b' : '#52B788';
-    const fillClass = isStress ? 'stress-fill' : 'normal-fill';
-
-    document.getElementById('val-temp').textContent  = p.temp + '°C';
-    document.getElementById('val-moist').textContent = p.moist + '%';
-    document.getElementById('val-light').textContent = p.light + '%';
-    document.getElementById('val-status').textContent = p.statusText;
-
-    ['val-temp','val-moist','val-light','val-status'].forEach(id => {
-      document.getElementById(id).style.color = col;
-    });
-
-    const bars = ['bar-temp','bar-moist','bar-light'];
-    const pcts = [p.tempPct, p.moistPct, p.lightPct];
-    bars.forEach((id, i) => {
-      const el = document.getElementById(id);
-      el.style.width = pcts[i] + '%';
-      el.className = 'env-bar-fill ' + fillClass;
-    });
-  }
-
-  // ── 색상 + 형태 적용 ────────────────────────────────────
-  function applyAppearance(mode) {
-    const cols   = mode === 'stress' ? stressColors : normalColors;
-    const shapes = mode === 'stress' ? stressShape  : normalShape;
-
-    const map = {
-      pot:'pot', soil:'soil', seed:'seed', stem:'stem',
-      leafL:'leaf-l', leafR:'leaf-r', leafT:'leaf-t',
-      leafBL:'leaf-big-l', leafBR:'leaf-big-r',
-      fruit1:'fruit1', fruit2:'fruit2',
-    };
-
-    Object.keys(cols).forEach(key => {
-      const el = document.getElementById(map[key]);
-      if (!el) return;
-      el.setAttribute('color', cols[key]);
-    });
-
-    Object.keys(shapes).forEach(key => {
-      const el = document.getElementById(map[key]);
-      if (!el) return;
-      const s = shapes[key];
-      el.setAttribute('position', s.pos);
-      el.setAttribute('rotation', s.rot);
-      el.setAttribute('scale',    s.scale);
-    });
-  }
-
-  // ── 단계 도트 업데이트 ──────────────────────────────────
-  function updateDots(stage) {
-    for (let i = 0; i < MAX_STAGE; i++) {
-      const dot = document.getElementById('dot-' + i);
-      dot.className = 'stage-dot';
-      if (i <= stage) {
-        dot.classList.add(currentMode === 'stress' ? 'stress-active' : 'active');
-      }
-    }
-  }
-
-  // ── 모드 전환 ───────────────────────────────────────────
-  function setMode(mode) {
-    currentMode = mode;
-
-    document.getElementById('btn-normal').style.background =
-      mode === 'normal' ? '#2D6A4F' : '#333';
-    document.getElementById('btn-stress').style.background =
-      mode === 'stress' ? '#8B0000' : '#333';
-
-    document.getElementById('header').style.background =
-      mode === 'stress' ? 'rgba(100,0,0,0.9)' : 'rgba(0,0,0,0.8)';
-
-    updateEnvUI(mode);
-    applyAppearance(mode);
-    updateDots(currentStage);
-
-    // 상태 텍스트 색
-    document.getElementById('status-text').setAttribute(
-      'color', mode === 'stress' ? '#ff4444' : '#ffffff'
-    );
-  }
-
-  // ── 5단계 성장 시뮬레이션 ───────────────────────────────
-  // Stage 0: 씨앗 (초기)
-  // Stage 1: 발아 (씨앗→줄기 시작)
-  // Stage 2: 새싹 (잎 첫 등장)
-  // Stage 3: 성장 (잎 풍성)
-  // Stage 4: 성숙 (큰 잎 등장)
-  // Stage 5: 수확 (열매)
-  const stageLabels = {
+  const SLABELS = {
     normal: ['SEED','GERMINATING','SPROUTING','GROWING','MATURE','HARVEST!'],
     stress: ['SEED','WILTING...','DROOPING...','STRESSED...','DAMAGED...','WILTED'],
   };
-  const stageHeaders = {
-    normal: [
-      'SmartFarm Growth AR',
-      'Step 1: 발아 시작 🌱',
-      'Step 2: 새싹 등장 🌿',
-      'Step 3: 잎 성장 중 🍃',
-      'Step 4: 성숙 단계 🌳',
-      'Step 5: 수확 완료! 🌾',
-    ],
-    stress: [
-      '⚠ STRESS MODE — 불량 환경',
-      'Step 1: 발아 부진 ⚠',
-      'Step 2: 새싹 시듦 ⚠',
-      'Step 3: 잎 손상 ⚠',
-      'Step 4: 심각한 손상 ⚠',
-      'Step 5: 생육 불량 ✗',
-    ],
+  const SHEADERS = {
+    normal: ['SmartFarm Growth AR','Step 1: 발아 시작 🌱','Step 2: 새싹 등장 🌿','Step 3: 잎 성장 중 🍃','Step 4: 성숙 단계 🌳','Step 5: 수확 완료! 🌾'],
+    stress: ['⚠ STRESS MODE','Step 1: 발아 부진 ⚠','Step 2: 새싹 시듦 ⚠','Step 3: 잎 손상 ⚠','Step 4: 심각한 손상 ⚠','Step 5: 생육 불량 ✗'],
   };
 
+  function setAttr(id, attr, val) {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute(attr, val);
+  }
+
+  function updateEnv() {
+    const e = ENV[mode];
+    document.getElementById('v-temp').textContent  = e.temp;
+    document.getElementById('v-moist').textContent = e.moist;
+    document.getElementById('v-light').textContent = e.light;
+    document.getElementById('v-state').textContent = e.state;
+    ['v-temp','v-moist','v-light','v-state'].forEach(id =>
+      document.getElementById(id).style.color = e.col);
+    [['f-temp',e.tp],['f-moist',e.mp],['f-light',e.lp]].forEach(([id,pct]) => {
+      const el = document.getElementById(id);
+      el.style.width = pct + '%';
+      el.style.background = e.col;
+    });
+  }
+
+  function applyAppearance() {
+    const cols   = mode === 'stress' ? SC : NC;
+    const shapes = mode === 'stress' ? SS : NS;
+    Object.keys(cols).forEach(k => setAttr(k, 'color', cols[k]));
+    Object.keys(shapes).forEach(k => {
+      const s = shapes[k];
+      setAttr(k, 'position', s.p);
+      setAttr(k, 'rotation', s.r);
+      setAttr(k, 'scale',    s.s);
+    });
+  }
+
+  function updateDots() {
+    for (let i = 0; i < MAX; i++) {
+      const d = document.getElementById('d' + i);
+      d.className = 'dot' + (i < stage ? (mode==='stress' ? ' on-s' : ' on-n') : '');
+    }
+    const cur = document.getElementById('d' + (stage > 0 ? stage-1 : 0));
+    if (stage > 0) cur.className = 'dot ' + (mode==='stress' ? 'on-s' : 'on-n');
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btn-n').style.background = m==='normal' ? '#2D6A4F' : '#444';
+    document.getElementById('btn-s').style.background = m==='stress' ? '#8B0000' : '#444';
+    document.getElementById('header').style.background =
+      m==='stress' ? 'rgba(100,0,0,0.9)' : 'rgba(0,0,0,0.82)';
+    document.getElementById('header-title').textContent = SHEADERS[m][stage];
+    setAttr('stxt', 'color', m==='stress' ? '#ff4444' : '#ffffff');
+    updateEnv();
+    applyAppearance();
+    updateDots();
+  }
+
   function simulate() {
-    if (currentStage >= MAX_STAGE) return;
-    currentStage++;
+    if (stage >= MAX) return;
+    stage++;
 
-    const s = document.getElementById('seed');
-    const stem = document.getElementById('stem');
-    const ll   = document.getElementById('leaf-l');
-    const lr   = document.getElementById('leaf-r');
-    const lt   = document.getElementById('leaf-t');
-    const lbl  = document.getElementById('leaf-big-l');
-    const lbr  = document.getElementById('leaf-big-r');
-    const f1   = document.getElementById('fruit1');
-    const f2   = document.getElementById('fruit2');
-    const st   = document.getElementById('status-text');
-    const fb   = document.getElementById('feedback');
+    const show = (id) => setAttr(id, 'visible', 'true');
+    const hide = (id) => setAttr(id, 'visible', 'false');
 
-    // 단계별 visible 제어
-    if (currentStage === 1) {
-      s.setAttribute('visible', 'false');
-      stem.setAttribute('visible', 'true');
-    } else if (currentStage === 2) {
-      ll.setAttribute('visible', 'true');
-      lr.setAttribute('visible', 'true');
-    } else if (currentStage === 3) {
-      lt.setAttribute('visible', 'true');
-    } else if (currentStage === 4) {
-      lbl.setAttribute('visible', 'true');
-      lbr.setAttribute('visible', 'true');
-    } else if (currentStage === 5) {
-      f1.setAttribute('visible', 'true');
-      f2.setAttribute('visible', 'true');
-      // 최종 결과
-      if (currentMode === 'normal') {
-        fb.textContent = '✓ 최적 환경 — 수확 완료!';
-        fb.className = 'success';
+    if (stage === 1) { hide('seed'); show('stem'); }
+    if (stage === 2) { show('ll'); show('lr'); }
+    if (stage === 3) { show('lt'); }
+    if (stage === 4) { show('lbl'); show('lbr'); }
+    if (stage === 5) {
+      show('f1'); show('f2');
+      const fb = document.getElementById('feedback');
+      if (mode === 'normal') {
+        fb.textContent = '✓ 최적 환경 — 수확 완료!'; fb.className = 'ok';
       } else {
-        fb.textContent = '✗ 생육 불량 — 환경값을 확인하세요';
-        fb.className = 'danger';
+        fb.textContent = '✗ 생육 불량 — 환경값을 확인하세요'; fb.className = 'bad';
       }
       fb.style.display = 'block';
     }
 
-    // 상태 텍스트 + 헤더
-    st.setAttribute('value', stageLabels[currentMode][currentStage]);
-    st.setAttribute('color', currentMode === 'stress' ? '#ff4444' : '#ffffff');
-    document.getElementById('header-title').textContent =
-      stageHeaders[currentMode][currentStage];
+    setAttr('stxt', 'value', SLABELS[mode][stage]);
+    setAttr('stxt', 'color', mode==='stress' ? '#ff4444' : '#ffffff');
+    document.getElementById('header-title').textContent = SHEADERS[mode][stage];
 
-    // 색상·형태 유지
-    applyAppearance(currentMode);
-    updateDots(currentStage);
+    applyAppearance();
+    updateDots();
   }
 
-  // ── 리셋 ────────────────────────────────────────────────
   function resetScene() {
-    currentStage = 0;
-
-    ['seed'].forEach(id =>
-      document.getElementById(id).setAttribute('visible', 'true'));
-    ['stem','leaf-l','leaf-r','leaf-t','leaf-big-l','leaf-big-r','fruit1','fruit2']
-      .forEach(id => document.getElementById(id).setAttribute('visible', 'false'));
-
-    document.getElementById('status-text').setAttribute('value', 'SEED');
+    stage = 0;
+    setAttr('seed','visible','true');
+    ['stem','ll','lr','lt','lbl','lbr','f1','f2'].forEach(id => setAttr(id,'visible','false'));
+    setAttr('stxt','value','SEED');
     document.getElementById('feedback').style.display = 'none';
-    document.getElementById('header-title').textContent =
-      stageHeaders[currentMode][0];
-
-    applyAppearance(currentMode);
-    updateEnvUI(currentMode);
-    updateDots(0);
+    document.getElementById('header-title').textContent = SHEADERS[mode][0];
+    applyAppearance();
+    updateEnv();
+    updateDots();
   }
 
-  // 초기 환경값 표시
-  updateEnvUI('normal');
+  // 초기화
+  updateEnv();
+  updateDots();
 </script>
-
 </body>
 </html>
