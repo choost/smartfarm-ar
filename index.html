@@ -179,29 +179,48 @@
 
   // ── 모드 전환 ───────────────────────────────────────────
   function setMode(mode) {
-    currentMode = mode;
-    const p = envParams[mode];
-    document.getElementById('env-text').setAttribute('value',
-      `온도: ${p.temp}°C\n수분: ${p.moist}%\n조도: ${p.light}%`
-    );
+  currentMode = mode;
+  const p = envParams[mode];
+  document.getElementById('env-text').setAttribute('value',
+    `온도: ${p.temp}°C\n수분: ${p.moist}%\n조도: ${p.light}%`
+  );
 
-    // 버튼 스타일
-    document.getElementById('btn-normal').style.background =
-      mode === 'normal' ? '#2D6A4F' : '#333';
-    document.getElementById('btn-stress').style.background =
-      mode === 'stress' ? '#8B0000' : '#333';
+  // 버튼 스타일
+  document.getElementById('btn-normal').style.background =
+    mode === 'normal' ? '#2D6A4F' : '#333';
+  document.getElementById('btn-stress').style.background =
+    mode === 'stress' ? '#8B0000' : '#333';
 
-    // Stress 모드면 식물 색상 변경
-    if (mode === 'stress') {
-      document.getElementById('leaf-l').setAttribute('color', '#8B8B1A');
-      document.getElementById('leaf-r').setAttribute('color', '#7A7A15');
-      document.getElementById('env-text').setAttribute('color', '#ff6b6b');
-    } else {
-      document.getElementById('leaf-l').setAttribute('color', '#52B788');
-      document.getElementById('leaf-r').setAttribute('color', '#40916C');
-      document.getElementById('env-text').setAttribute('color', '#74C69D');
-    }
+  if (mode === 'stress') {
+    // 화분 색 어둡게
+    document.getElementById('pot').setAttribute('color', '#5C3D1E');
+    // 씨앗 색 탁하게
+    document.getElementById('seed').setAttribute('color', '#6B5B1A');
+    // 줄기 노랗게
+    document.getElementById('stem').setAttribute('color', '#8B8B1A');
+    // 잎 시든 색
+    document.getElementById('leaf-l').setAttribute('color', '#8B8B1A');
+    document.getElementById('leaf-r').setAttribute('color', '#7A7A15');
+    // 열매 색 탁하게
+    document.getElementById('fruit').setAttribute('color', '#8B6914');
+    // 환경 텍스트 빨간색
+    document.getElementById('env-text').setAttribute('color', '#ff6b6b');
+    // 상태 텍스트
+    document.getElementById('status-text').setAttribute('value', 'STRESS MODE');
+    document.getElementById('status-text').setAttribute('color', '#ff4444');
+  } else {
+    // Normal: 원래 색으로 복구
+    document.getElementById('pot').setAttribute('color', '#8B5E3C');
+    document.getElementById('seed').setAttribute('color', '#8B6914');
+    document.getElementById('stem').setAttribute('color', '#3a8c3a');
+    document.getElementById('leaf-l').setAttribute('color', '#52B788');
+    document.getElementById('leaf-r').setAttribute('color', '#40916C');
+    document.getElementById('fruit').setAttribute('color', '#f4a261');
+    document.getElementById('env-text').setAttribute('color', '#74C69D');
+    document.getElementById('status-text').setAttribute('value', 'SEED');
+    document.getElementById('status-text').setAttribute('color', '#ffffff');
   }
+}
 
   // ── 성장 시뮬레이션 ─────────────────────────────────────
   function simulate() {
