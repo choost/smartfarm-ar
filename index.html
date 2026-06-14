@@ -4,51 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SmartFarm Growth AR</title>
-
-  <!-- A-Frame + AR.js CDN -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-
   <style>
     body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-
-    /* 상단 헤더 */
     #header {
       position: fixed; top: 0; left: 0; right: 0;
-      background: rgba(0,0,0,0.7); color: white;
-      padding: 8px 12px; font-size: 13px; z-index: 999;
+      background: rgba(0,0,0,0.75); color: white;
+      padding: 10px; font-size: 13px; z-index: 999;
       text-align: center;
     }
-
-    /* 하단 버튼 바 */
     #controls {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: rgba(0,0,0,0.8); padding: 10px;
+      background: rgba(0,0,0,0.85); padding: 10px;
       display: flex; gap: 8px; justify-content: center;
-      z-index: 999;
+      flex-wrap: wrap; z-index: 999;
     }
     button {
-      padding: 10px 18px; border: none; border-radius: 8px;
-      font-size: 13px; cursor: pointer; color: white;
+      padding: 10px 16px; border: none; border-radius: 8px;
+      font-size: 13px; cursor: pointer; color: white; font-weight: bold;
     }
     #btn-normal   { background: #2D6A4F; }
     #btn-stress   { background: #333; border: 1px solid #666; }
     #btn-simulate { background: #1B4332; }
-    #btn-reset    { background: #444; }
-
-    /* 결과 피드백 */
+    #btn-reset    { background: #555; }
     #feedback {
-      position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.75); color: #52B788;
+      position: fixed; bottom: 65px; left: 50%; transform: translateX(-50%);
       padding: 8px 20px; border-radius: 6px;
-      font-size: 13px; z-index: 999; display: none;
+      font-size: 13px; font-weight: bold; z-index: 999;
+      display: none; white-space: nowrap;
+      background: rgba(0,0,0,0.8);
     }
-    #feedback.stress { color: #ff6b6b; }
+    #feedback.success { color: #52B788; }
+    #feedback.danger  { color: #ff6b6b; }
   </style>
 </head>
 <body>
 
-<!-- UI 오버레이 -->
 <div id="header">SmartFarm Growth AR</div>
 
 <div id="controls">
@@ -60,14 +52,12 @@
 
 <div id="feedback"></div>
 
-<!-- AR 씬 -->
 <a-scene
   embedded
   arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;"
   renderer="logarithmicDepthBuffer: true;"
   vr-mode-ui="enabled: false">
 
-  <!-- ── Crop 마커: 식물 3D 오브젝트 ── -->
   <a-marker preset="hiro" id="crop-marker">
 
     <!-- 화분 -->
@@ -78,13 +68,13 @@
     </a-cylinder>
 
     <!-- 흙 -->
-    <a-cylinder
+    <a-cylinder id="soil"
       position="0 0.23 0"
       radius="0.28" height="0.05"
       color="#4a3728">
     </a-cylinder>
 
-    <!-- 씨앗 (Seed 단계) -->
+    <!-- 씨앗 -->
     <a-sphere id="seed"
       position="0 0.32 0"
       radius="0.08"
@@ -92,7 +82,7 @@
       visible="true">
     </a-sphere>
 
-    <!-- 새싹 줄기 (Sprout 단계) -->
+    <!-- 줄기 -->
     <a-cylinder id="stem"
       position="0 0.6 0"
       radius="0.04" height="0.6"
@@ -101,27 +91,36 @@
     </a-cylinder>
 
     <!-- 잎 왼쪽 -->
-    <a-ellipse id="leaf-l"
-      position="-0.2 0.7 0"
-      width="0.3" height="0.15"
-      rotation="0 0 -30"
+    <a-sphere id="leaf-l"
+      position="-0.22 0.72 0"
+      radius="0.13"
       color="#52B788"
+      scale="1.6 0.7 0.7"
       visible="false">
-    </a-ellipse>
+    </a-sphere>
 
     <!-- 잎 오른쪽 -->
-    <a-ellipse id="leaf-r"
-      position="0.2 0.8 0"
-      width="0.3" height="0.15"
-      rotation="0 0 30"
+    <a-sphere id="leaf-r"
+      position="0.22 0.82 0"
+      radius="0.13"
       color="#40916C"
+      scale="1.6 0.7 0.7"
       visible="false">
-    </a-ellipse>
+    </a-sphere>
 
-    <!-- 열매 (Harvest 단계) -->
+    <!-- 잎 위 -->
+    <a-sphere id="leaf-t"
+      position="0 0.95 0"
+      radius="0.11"
+      color="#74C69D"
+      scale="0.8 1.4 0.8"
+      visible="false">
+    </a-sphere>
+
+    <!-- 열매 -->
     <a-sphere id="fruit"
-      position="0.15 1.0 0"
-      radius="0.12"
+      position="0.18 1.05 0"
+      radius="0.13"
       color="#f4a261"
       visible="false">
     </a-sphere>
@@ -129,35 +128,10 @@
     <!-- 상태 텍스트 -->
     <a-text id="status-text"
       value="SEED"
-      position="0 1.4 0"
+      position="0 1.5 0"
       align="center"
       color="#ffffff"
-      background-color="#111111"
-      width="2">
-    </a-text>
-
-  </a-marker>
-
-  <!-- ── Env 마커: 환경 제어 패널 ── -->
-  <a-marker type="pattern" url="markers/env-marker.patt" id="env-marker">
-
-    <!-- 환경 정보 패널 배경 -->
-    <a-plane
-      position="0 0.5 0"
-      rotation="-90 0 0"
-      width="1.8" height="1.2"
-      color="#111111"
-      opacity="0.85">
-    </a-plane>
-
-    <!-- 환경 텍스트 -->
-    <a-text id="env-text"
-      value="온도: 24°C\n수분: 70%\n조도: 80%"
-      position="0 0.5 0.01"
-      rotation="-90 0 0"
-      align="center"
-      color="#74C69D"
-      width="1.6">
+      width="2.5">
     </a-text>
 
   </a-marker>
@@ -165,138 +139,143 @@
   <a-entity camera></a-entity>
 </a-scene>
 
-
 <script>
-  // ── 상태 관리 ───────────────────────────────────────────
-  let currentMode   = 'normal';
-  let currentStage  = 0; // 0:seed 1:sprout 2:mature 3:harvest
+  let currentMode  = 'normal';
+  let currentStage = 0;
 
-  // 환경 파라미터 (Normal / Stress)
-  const envParams = {
-    normal: { temp: 24, moist: 70, light: 80 },
-    stress: { temp: 39, moist: 8,  light: 15 },
+  const colors = {
+    normal: {
+      pot:   '#8B5E3C',
+      seed:  '#8B6914',
+      stem:  '#3a8c3a',
+      leafL: '#52B788',
+      leafR: '#40916C',
+      leafT: '#74C69D',
+      fruit: '#f4a261',
+    },
+    stress: {
+      pot:   '#4a2e10',
+      seed:  '#5a4a0a',
+      stem:  '#6b6b10',
+      leafL: '#7a7a10',
+      leafR: '#696905',
+      leafT: '#5a5a08',
+      fruit: '#7a5a0a',
+    }
   };
 
-  // ── 모드 전환 ───────────────────────────────────────────
-  function setMode(mode) {
-  currentMode = mode;
-  const p = envParams[mode];
-  document.getElementById('env-text').setAttribute('value',
-    `온도: ${p.temp}°C\n수분: ${p.moist}%\n조도: ${p.light}%`
-  );
-
-  // 버튼 스타일
-  document.getElementById('btn-normal').style.background =
-    mode === 'normal' ? '#2D6A4F' : '#333';
-  document.getElementById('btn-stress').style.background =
-    mode === 'stress' ? '#8B0000' : '#333';
-
-  if (mode === 'stress') {
-    // 화분 색 어둡게
-    document.getElementById('pot').setAttribute('color', '#5C3D1E');
-    // 씨앗 색 탁하게
-    document.getElementById('seed').setAttribute('color', '#6B5B1A');
-    // 줄기 노랗게
-    document.getElementById('stem').setAttribute('color', '#8B8B1A');
-    // 잎 시든 색
-    document.getElementById('leaf-l').setAttribute('color', '#8B8B1A');
-    document.getElementById('leaf-r').setAttribute('color', '#7A7A15');
-    // 열매 색 탁하게
-    document.getElementById('fruit').setAttribute('color', '#8B6914');
-    // 환경 텍스트 빨간색
-    document.getElementById('env-text').setAttribute('color', '#ff6b6b');
-    // 상태 텍스트
-    document.getElementById('status-text').setAttribute('value', 'STRESS MODE');
-    document.getElementById('status-text').setAttribute('color', '#ff4444');
-  } else {
-    // Normal: 원래 색으로 복구
-    document.getElementById('pot').setAttribute('color', '#8B5E3C');
-    document.getElementById('seed').setAttribute('color', '#8B6914');
-    document.getElementById('stem').setAttribute('color', '#3a8c3a');
-    document.getElementById('leaf-l').setAttribute('color', '#52B788');
-    document.getElementById('leaf-r').setAttribute('color', '#40916C');
-    document.getElementById('fruit').setAttribute('color', '#f4a261');
-    document.getElementById('env-text').setAttribute('color', '#74C69D');
-    document.getElementById('status-text').setAttribute('value', 'SEED');
-    document.getElementById('status-text').setAttribute('color', '#ffffff');
+  function applyColors(mode) {
+    const c = colors[mode];
+    document.getElementById('pot').setAttribute('color',    c.pot);
+    document.getElementById('seed').setAttribute('color',   c.seed);
+    document.getElementById('stem').setAttribute('color',   c.stem);
+    document.getElementById('leaf-l').setAttribute('color', c.leafL);
+    document.getElementById('leaf-r').setAttribute('color', c.leafR);
+    document.getElementById('leaf-t').setAttribute('color', c.leafT);
+    document.getElementById('fruit').setAttribute('color',  c.fruit);
   }
-}
 
-  // ── 성장 시뮬레이션 ─────────────────────────────────────
+  function setMode(mode) {
+    currentMode = mode;
+
+    // 버튼 색
+    document.getElementById('btn-normal').style.background =
+      mode === 'normal' ? '#2D6A4F' : '#333';
+    document.getElementById('btn-stress').style.background =
+      mode === 'stress' ? '#8B0000' : '#333';
+
+    // 오브젝트 색 즉시 반영
+    applyColors(mode);
+
+    // 상태 텍스트 색
+    const statusEl = document.getElementById('status-text');
+    if (mode === 'stress') {
+      statusEl.setAttribute('color', '#ff4444');
+      document.getElementById('header').style.background = 'rgba(100,0,0,0.85)';
+      document.getElementById('header').textContent = '⚠ STRESS MODE — 불량 환경 시뮬레이션';
+    } else {
+      statusEl.setAttribute('color', '#ffffff');
+      document.getElementById('header').style.background = 'rgba(0,0,0,0.75)';
+      document.getElementById('header').textContent = 'SmartFarm Growth AR';
+    }
+  }
+
   function simulate() {
     if (currentStage >= 3) return;
     currentStage++;
-    updateStage(currentStage);
-  }
 
-  function updateStage(stage) {
     const seed   = document.getElementById('seed');
     const stem   = document.getElementById('stem');
     const leafL  = document.getElementById('leaf-l');
     const leafR  = document.getElementById('leaf-r');
+    const leafT  = document.getElementById('leaf-t');
     const fruit  = document.getElementById('fruit');
     const status = document.getElementById('status-text');
     const fb     = document.getElementById('feedback');
 
-    // 단계별 표시
-    if (stage === 1) {
-      // Sprout 단계
+    if (currentStage === 1) {
       seed.setAttribute('visible', 'false');
       stem.setAttribute('visible', 'true');
       leafL.setAttribute('visible', 'true');
       leafR.setAttribute('visible', 'true');
-      status.setAttribute('value', 'SPROUTING');
-      showHeader('Step 1: Seed → Sprout 단계');
+      status.setAttribute('value', currentMode === 'stress' ? 'WILTING...' : 'SPROUTING');
+      document.getElementById('header').textContent = 'Step 1: Seed → Sprout';
 
-    } else if (stage === 2) {
-      // Mature 단계: 잎 커지기
-      leafL.setAttribute('width', '0.5');
-      leafR.setAttribute('width', '0.5');
-      stem.setAttribute('height', '0.9');
-      stem.setAttribute('position', '0 0.75 0');
-      status.setAttribute('value', 'GROWING');
-      showHeader('Step 2: Sprout → Mature 단계');
+    } else if (currentStage === 2) {
+      leafT.setAttribute('visible', 'true');
+      stem.setAttribute('height', '0.85');
+      stem.setAttribute('position', '0 0.72 0');
+      status.setAttribute('value', currentMode === 'stress' ? 'STRESSED...' : 'GROWING');
+      document.getElementById('header').textContent = 'Step 2: Sprout → Mature';
 
-    } else if (stage === 3) {
-      // Harvest 단계
+    } else if (currentStage === 3) {
       fruit.setAttribute('visible', 'true');
-      status.setAttribute('value', 'HARVEST');
-      showHeader('Step 3: Mature → Harvest 단계');
+      document.getElementById('header').textContent = 'Step 3: Mature → Harvest';
 
-      // 결과 피드백
       if (currentMode === 'normal') {
+        status.setAttribute('value', 'HARVEST!');
+        status.setAttribute('color', '#52B788');
         fb.textContent = '✓ 최적 환경 — 수확 완료!';
-        fb.className = '';
-        fb.style.display = 'block';
+        fb.className = 'success';
       } else {
+        status.setAttribute('value', 'WILTED');
+        status.setAttribute('color', '#ff4444');
         fb.textContent = '⚠ 생육 불량 — 환경값을 확인하세요';
-        fb.className = 'stress';
-        fb.style.display = 'block';
+        fb.className = 'danger';
       }
+      fb.style.display = 'block';
     }
+
+    // 단계마다 색상 유지
+    applyColors(currentMode);
   }
 
-  // ── 리셋 ────────────────────────────────────────────────
   function resetScene() {
     currentStage = 0;
 
-    document.getElementById('seed').setAttribute('visible', 'true');
-    document.getElementById('stem').setAttribute('visible', 'false');
+    document.getElementById('seed').setAttribute('visible',   'true');
+    document.getElementById('stem').setAttribute('visible',   'false');
     document.getElementById('leaf-l').setAttribute('visible', 'false');
     document.getElementById('leaf-r').setAttribute('visible', 'false');
-    document.getElementById('fruit').setAttribute('visible', 'false');
-    document.getElementById('leaf-l').setAttribute('width', '0.3');
-    document.getElementById('leaf-r').setAttribute('width', '0.3');
-    document.getElementById('stem').setAttribute('height', '0.6');
-    document.getElementById('stem').setAttribute('position', '0 0.6 0');
-    document.getElementById('status-text').setAttribute('value', 'SEED');
-    document.getElementById('header').textContent = 'SmartFarm Growth AR';
-    document.getElementById('feedback').style.display = 'none';
-  }
+    document.getElementById('leaf-t').setAttribute('visible', 'false');
+    document.getElementById('fruit').setAttribute('visible',  'false');
 
-  // ── 헤더 텍스트 업데이트 ────────────────────────────────
-  function showHeader(text) {
-    document.getElementById('header').textContent = text;
+    document.getElementById('stem').setAttribute('height',   '0.6');
+    document.getElementById('stem').setAttribute('position', '0 0.6 0');
+
+    document.getElementById('status-text').setAttribute('value', 'SEED');
+    document.getElementById('status-text').setAttribute('color', currentMode === 'stress' ? '#ff4444' : '#ffffff');
+    document.getElementById('feedback').style.display = 'none';
+
+    if (currentMode === 'normal') {
+      document.getElementById('header').textContent = 'SmartFarm Growth AR';
+      document.getElementById('header').style.background = 'rgba(0,0,0,0.75)';
+    } else {
+      document.getElementById('header').textContent = '⚠ STRESS MODE — 불량 환경 시뮬레이션';
+      document.getElementById('header').style.background = 'rgba(100,0,0,0.85)';
+    }
+
+    applyColors(currentMode);
   }
 </script>
 
