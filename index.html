@@ -285,11 +285,8 @@
   function applyAppearance() {
     const cols   = mode === 'stress' ? SC : NC;
     const shapes = mode === 'stress' ? SS : NS;
-    Object.keys(cols).forEach(k   => set(k, 'color',    cols[k]));
-    Object.keys(shapes).forEach(k => {
-      set(k, 'position', shapes[k].p);
-      set(k, 'scale',    shapes[k].s);
-    });
+    Object.keys(cols).forEach(k   => set(k, 'color', cols[k]));
+    Object.keys(shapes).forEach(k => set(k, 'scale', shapes[k].s));
   }
 
   function updateDots() {
